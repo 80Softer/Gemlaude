@@ -3,225 +3,299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini API Chat</title>
+    <title>Gemlaude</title>
     <style>
-        * {
-            box-sizing: border-box;
+        /* Gemini Dark Theme Colors & Reset */
+        :root {
+            --bg-color: #131314;
+            --surface-color: #1e1f20;
+            --text-primary: #e3e3e3;
+            --text-secondary: #c4c7c5;
+            --accent-color: #a8c7fa;
+            --error-color: #f28b82;
+            --success-color: #81c995;
+            --user-bubble: #303134;
         }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f5f7fb;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-        #config-area {
-            background: white;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        #config-area label {
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-        }
-        #api-key {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        #chat-area {
-            flex: 1;
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            overflow-y: auto;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-            margin-bottom: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .message {
-            max-width: 75%;
-            padding: 10px 16px;
-            border-radius: 18px;
-            font-size: 15px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-        .user {
-            background-color: #007aff;
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 2px;
-        }
-        .ai {
-            background-color: #f1f1f4;
-            color: #1c1c1e;
-            align-self: flex-start;
-            border-bottom-left-radius: 2px;
-            white-space: pre-wrap;
-        }
-        #input-area {
-            display: flex;
-            gap: 10px;
-        }
-        #message-input {
-            flex: 1;
-            padding: 12px 16px;
-            border: 1px solid #ddd;
-            border-radius: 24px;
-            font-size: 15px;
-            outline: none;
-            background: white;
-        }
-        #message-input:disabled {
-            background: #efefef;
-            placeholder: "APIキーを入力してください";
-        }
-        #send-btn {
-            padding: 0 24px;
-            background-color: #007aff;
-            color: white;
-            border: none;
-            border-radius: 24px;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        #send-btn:disabled {
-            background-color: #bae0ff;
-            cursor: not-allowed;
-        }
+        body { margin: 0; font-family: 'Google Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-color); color: var(--text-primary); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Header */
+        header { padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 1.2em; border-bottom: 1px solid #333; }
+        .logo-container { display: flex; align-items: center; gap: 8px; font-weight: 500; letter-spacing: 1px; }
+        .settings-btn { display: flex; align-items: center; gap: 6px; background: transparent; border: none; color: var(--text-secondary); font-size: 1em; cursor: pointer; }
+        .settings-btn:hover { color: var(--text-primary); }
+        
+        /* Chat Area */
+        #chatContainer { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; padding-bottom: 120px; }
+        .message { max-width: 85%; line-height: 1.5; padding: 12px 18px; border-radius: 12px; font-size: 1em; overflow-wrap: break-word; }
+        .user-message { background-color: var(--user-bubble); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .ai-message { background-color: transparent; align-self: flex-start; width: 100%; }
+        .system-message { color: var(--text-secondary); font-size: 0.9em; align-self: center; background: #2a2b2c; padding: 10px 15px; border-radius: 8px; width: 90%; }
+        .error-message { color: var(--error-color); background: rgba(242, 139, 130, 0.1); padding: 10px; border-radius: 8px; border-left: 4px solid var(--error-color); }
+        
+        /* Status Text Colors */
+        .status-ok { color: var(--success-color); font-weight: bold; }
+        .status-err { color: var(--error-color); font-weight: bold; }
+
+        /* Iframe Preview & Textarea */
+        .preview-container { width: 100%; margin-top: 15px; border: 1px solid #444; border-radius: 8px; overflow: hidden; background: #fff; }
+        iframe { width: 100%; height: 400px; border: none; display: block; background: #fff; }
+        .code-output { width: 100%; height: 200px; background: #000; color: #0f0; font-family: monospace; padding: 10px; border-radius: 5px; box-sizing: border-box; margin-top: 10px; border: 1px solid #333; resize: vertical; }
+        
+        /* Input Area (Sticky Bottom) */
+        .input-wrapper { position: fixed; bottom: 0; left: 0; right: 0; padding: 20px; background: linear-gradient(transparent, var(--bg-color) 20%); display: flex; justify-content: center; }
+        .input-box { display: flex; align-items: center; background-color: var(--surface-color); border-radius: 24px; padding: 5px 15px; width: 100%; max-width: 800px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+        .input-box input { flex: 1; background: transparent; border: none; color: var(--text-primary); font-size: 1em; padding: 15px 5px; outline: none; }
+        .input-box button { background: var(--accent-color); color: #000; border: none; border-radius: 50%; width: 40px; height: 40px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        .input-box button:disabled { background: #555; cursor: not-allowed; }
+
+        /* Settings Modal */
+        #settingsModal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: var(--surface-color); padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; }
+        .modal-content input { width: 100%; margin: 10px 0 20px 0; padding: 10px; background: var(--bg-color); border: 1px solid #555; color: white; border-radius: 6px; box-sizing: border-box;}
+        .modal-btn { background: var(--accent-color); color: #000; border: none; padding: 10px; width: 100%; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        
+        /* SVG Icons Styling */
+        svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     </style>
 </head>
 <body>
 
-    <div id="config-area">
-        <label for="api-key">Gemini API Key:</label>
-        <input type="password" id="api-key" placeholder="AI Studioで取得したAPIキーを入力">
+    <header>
+        <div class="logo-container">
+            <svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            Gemlaude
+        </div>
+        <button class="settings-btn" onclick="toggleSettings()">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            設定
+        </button>
+    </header>
+
+    <div id="chatContainer">
+        <div class="message ai-message">
+            こんにちは！Gemlaudeです。<br>
+            まずは右上の「設定」からAPIキーを入力し、下の入力欄に作りたいものを書いてください。<br>
+            ※開発者ツールが使えない環境向けに、コードを生テキストで出力する機能が追加されています。
+        </div>
     </div>
 
-    <div id="chat-area">
-        <div class="message ai">APIキーを入力するとチャットを開始できます。</div>
+    <div class="input-wrapper">
+        <div class="input-box">
+            <input type="text" id="ideaInput" placeholder="作りたいアプリを入力してください..." onkeypress="if(event.key === 'Enter') startProcess()">
+            <button id="sendBtn" onclick="startProcess()">
+                <svg viewBox="0 0 24 24" style="width: 18px; height: 18px;"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+        </div>
     </div>
 
-    <div id="input-area">
-        <input type="text" id="message-input" placeholder="メッセージを入力..." disabled>
-        <button id="send-btn" disabled>送信</button>
+    <div id="settingsModal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">APIキー設定</h3>
+            <label>OpenRouter API Key</label>
+            <input type="password" id="orKey" placeholder="sk-or-v1-...">
+            <label>Google AI Studio API Key</label>
+            <input type="password" id="gmKey" placeholder="AIza...">
+            <button class="modal-btn" onclick="saveSettings()">保存して閉じる</button>
+        </div>
     </div>
 
     <script>
-        const apiKeyInput = document.getElementById('api-key');
-        const chatArea = document.getElementById('chat-area');
-        const messageInput = document.getElementById('message-input');
-        const sendBtn = document.getElementById('send-btn');
+        const chatContainer = document.getElementById('chatContainer');
+        const sendBtn = document.getElementById('sendBtn');
+        const ideaInput = document.getElementById('ideaInput');
 
-        // ページ読み込み時にLocalStorageからAPIキーを復元
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedKey = localStorage.getItem('gemini_api_key');
-            if (savedKey) {
-                apiKeyInput.value = savedKey;
-                toggleInputStatus(true);
-            }
-        });
+        window.onload = () => {
+            document.getElementById('orKey').value = localStorage.getItem('gemlaude_or_key') || '';
+            document.getElementById('gmKey').value = localStorage.getItem('gemlaude_gm_key') || '';
+        };
 
-        // APIキー入力時の処理
-        apiKeyInput.addEventListener('input', () => {
-            const key = apiKeyInput.value.trim();
-            if (key) {
-                localStorage.setItem('gemini_api_key', key);
-                toggleInputStatus(true);
-            } else {
-                localStorage.removeItem('gemini_api_key');
-                toggleInputStatus(false);
-            }
-        });
-
-        function toggleInputStatus(enabled) {
-            messageInput.disabled = !enabled;
-            sendBtn.disabled = !enabled;
-            if (enabled) {
-                messageInput.placeholder = "メッセージを入力...";
-            } else {
-                messageInput.placeholder = "APIキーを入力してください";
-            }
+        function toggleSettings() {
+            const modal = document.getElementById('settingsModal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // メッセージを画面に追加
-        function appendMessage(text, sender) {
-            const msgDiv = document.createElement('div');
-            msgDiv.classList.add('message', sender);
-            msgDiv.innerText = text;
-            chatArea.appendChild(msgDiv);
-            chatArea.scrollTop = chatArea.scrollHeight;
+        function saveSettings() {
+            localStorage.setItem('gemlaude_or_key', document.getElementById('orKey').value.trim());
+            localStorage.setItem('gemlaude_gm_key', document.getElementById('gmKey').value.trim());
+            toggleSettings();
         }
 
-        // 送信処理
-        async function sendMessage() {
-            const prompt = messageInput.value.trim();
-            const apiKey = apiKeyInput.value.trim();
-            if (!prompt || !apiKey) return;
+        function appendMessage(text, type) {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.innerHTML = text.replace(/\n/g, '<br>');
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return div;
+        }
 
-            appendMessage(prompt, 'user');
-            messageInput.value = '';
+        async function callOpenRouter(prompt) {
+            const key = document.getElementById('orKey').value.trim();
+            const res = await fetch('[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${key}`,
+                    'HTTP-Referer': '[https://gemlaude.local](https://gemlaude.local)',
+                    'X-Title': 'Gemlaude',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'qwen/qwen-2.5-coder-32b-instruct',
+                    messages: [{ role: 'user', content: prompt }]
+                })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(()=>({}));
+                throw new Error(`(${res.status}) ${err.error?.message || '通信失敗'}`);
+            }
+            const data = await res.json();
+            return data.choices[0].message.content;
+        }
+
+        async function callGemini(prompt) {
+            const key = document.getElementById('gmKey').value.trim();
+            const listUrl = `[https://generativelanguage.googleapis.com/v1beta/models?key=$](https://generativelanguage.googleapis.com/v1beta/models?key=$){key}`;
+            const listRes = await fetch(listUrl);
+            const listData = await listRes.json();
+            
+            const bestModel = listData.models.find(m => m.name.includes('gemini-2.5-flash'))?.name 
+                           || listData.models.find(m => m.name.includes('gemini-1.5-flash'))?.name 
+                           || listData.models[0].name;
+
+            const url = `[https://generativelanguage.googleapis.com/v1beta/$](https://generativelanguage.googleapis.com/v1beta/$){bestModel}:generateContent?key=${key}`;
+            
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(()=>({}));
+                throw new Error(`(${res.status}) ${err.error?.message || '通信失敗'}. 試行モデル: ${bestModel}`);
+            }
+            
+            const data = await res.json();
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        async function testConnections() {
+            const statusDiv = appendMessage("🔄 通信テストを実行中...", "system-message");
+            const [orResult, gmResult] = await Promise.allSettled([
+                callOpenRouter("Hi"),
+                callGemini("Hi")
+            ]);
+
+            let resultHtml = "<b>【API通信テスト結果】</b><br>";
+            let isAllSuccess = true;
+
+            if (orResult.status === "fulfilled") {
+                resultHtml += `<span class="status-ok">✔ OpenRouterの通信に成功</span><br>`;
+            } else {
+                resultHtml += `<span class="status-err">✖ OpenRouterの通信に失敗:</span> ${orResult.reason.message}<br>`;
+                isAllSuccess = false;
+            }
+
+            if (gmResult.status === "fulfilled") {
+                resultHtml += `<span class="status-ok">✔ Geminiの通信に成功</span>`;
+            } else {
+                resultHtml += `<span class="status-err">✖ Geminiの通信に失敗:</span> ${gmResult.reason.message}`;
+                isAllSuccess = false;
+            }
+
+            statusDiv.innerHTML = resultHtml;
+            return isAllSuccess;
+        }
+
+        // HTMLタグをエスケープする関数（テキストエリア表示用）
+        function escapeHtml(str) {
+            return str.replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#39;');
+        }
+
+        async function startProcess() {
+            const idea = ideaInput.value.trim();
+            if (!idea) return;
+
+            ideaInput.value = '';
             sendBtn.disabled = true;
+            appendMessage(idea, "user-message");
+
+            const isConnected = await testConnections();
+            if (!isConnected) {
+                appendMessage("❌ 通信エラーのため処理を中止しました。設定のAPIキーを確認してください。", "error-message");
+                sendBtn.disabled = false;
+                return;
+            }
 
             try {
-                // Google公式ドメインのエンドポイント (Gemini 2.0 Flash)
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+                // 1. OpenRouter (実装)
+                const statusDiv = appendMessage("💭 思考中... (1/3: OpenRouterがコードを試作中)", "system-message");
+                const prompt1 = `
+以下のアイデアを実装せよ。
+【厳守事項】
+1. HTML, CSS, JavaScriptを別々のブロックに分けることは絶対に禁止。
+2. 必ず <style> と <script> タグを用いて、完全に1つのHTMLファイルとして統合すること。
+3. コード以外の挨拶や解説は一切不要。純粋なテキスト形式で出力せよ。
+4. 出力全体を1つの \`\`\`html と \`\`\` で囲むこと。
 
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: prompt }]
-                        }]
-                    })
-                });
+アイデア: ${idea}`;
+                const initialCode = await callOpenRouter(prompt1);
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
+                // 2. Gemini (解析・デバッグ)
+                statusDiv.innerHTML = "💭 思考中... (2/3: Geminiがバグ解析と軽量化案を計算中)";
+                const geminiReport = await callGemini(`以下のコードの主要なバグ1点と、機能改善案1点を、簡潔に3行で教えてくれ。\n\n${initialCode}`);
                 
-                // レスポンスデータの解析
-                if (data.candidates && data.candidates[0].content.parts[0].text) {
-                    const aiResponse = data.candidates[0].content.parts[0].text;
-                    appendMessage(aiResponse, 'ai');
-                } else {
-                    appendMessage('適切な応答を受け取れませんでした。', 'ai');
+                // 3. OpenRouter (最終修正)
+                statusDiv.innerHTML = "💭 思考中... (3/3: OpenRouterが最終修正を適用中)";
+                const prompt2 = `
+【最重要命令】
+元のコードと修正案を元に、完成版のHTMLを作れ。
+・HTML、CSS、JSを分割せず、1つのファイルにまとめること（<style>と<script>を使用）。
+・絶対にコードを省略せず、最後まで書き切ること。
+・解説は一切書くな。純粋なテキスト形式として、出力は \`\`\`html から始まり \`\`\` で終わる1つのブロックのみにしろ。
+
+【元のコード】
+${initialCode}
+
+【修正案】
+${geminiReport}`;
+                const finalResponse = await callOpenRouter(prompt2);
+
+                // コード抽出
+                let finalCode = finalResponse;
+                
+                // ブロックの抽出を試みる
+                const match1 = finalResponse.match(/```(?:html)?\s*([\s\S]*?)\s*```/);
+                if (match1) {
+                    finalCode = match1[1];
                 }
+
+                statusDiv.innerHTML = "<span class='status-ok'>✨ アプリが完成しました！</span>";
+
+                // iframe表示と、コピー用テキストエリアの両方を生成
+                const safeCode = escapeHtml(finalCode);
+                const resultHtml = `
+                    <div class="ai-message">最終出力結果です:</div>
+                    <div class="preview-container">
+                        <iframe srcdoc="${finalCode.replace(/"/g, '&quot;')}"></iframe>
+                    </div>
+                    <div class="ai-message" style="margin-top:10px;">
+                        <p style="font-size:0.8em; color:#aaa; margin-bottom:5px;">※iframeで動かない場合やコードを確認したい場合は、下を長押しして全選択コピーしてください。</p>
+                        <textarea class="code-output" readonly>${safeCode}</textarea>
+                    </div>
+                `;
+                appendMessage(resultHtml, "ai-message");
 
             } catch (error) {
-                console.error(error);
-                appendMessage(`エラーが発生しました: ${error.message}\nAPIキーが正しいか、または通信がブロックされていないか確認してください。`, 'ai');
+                appendMessage(`❌ 処理中にエラーが発生しました\n${error.message}`, "error-message");
             } finally {
                 sendBtn.disabled = false;
-                messageInput.focus();
             }
         }
-
-        // イベントリスナー
-        sendBtn.addEventListener('click', sendMessage);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
     </script>
 </body>
 </html>
