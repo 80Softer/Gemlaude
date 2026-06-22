@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API Chat</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f7fb;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #config-area {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        #config-area label {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+        }
+        #api-key {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        #chat-area {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            max-width: 75%;
+            padding: 10px 16px;
+            border-radius: 18px;
+            font-size: 15px;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+        .user {
+            background-color: #007aff;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+        .ai {
+            background-color: #f1f1f4;
+            color: #1c1c1e;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+            white-space: pre-wrap;
+        }
+        #input-area {
+            display: flex;
+            gap: 10px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 24px;
+            font-size: 15px;
+            outline: none;
+            background: white;
+        }
+        #message-input:disabled {
+            background: #efefef;
+            placeholder: "APIキーを入力してください";
+        }
+        #send-btn {
+            padding: 0 24px;
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #send-btn:disabled {
+            background-color: #bae0ff;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="config-area">
+        <label for="api-key">Gemini API Key:</label>
+        <input type="password" id="api-key" placeholder="AI Studioで取得したAPIキーを入力">
+    </div>
+
+    <div id="chat-area">
+        <div class="message ai">APIキーを入力するとチャットを開始できます。</div>
+    </div>
+
+    <div id="input-area">
+        <input type="text" id="message-input" placeholder="メッセージを入力..." disabled>
+        <button id="send-btn" disabled>送信</button>
+    </div>
+
+    <script>
+        const apiKeyInput = document.getElementById('api-key');
+        const chatArea = document.getElementById('chat-area');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        // ページ読み込み時にLocalStorageからAPIキーを復元
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedKey = localStorage.getItem('gemini_api_key');
+            if (savedKey) {
+                apiKeyInput.value = savedKey;
+                toggleInputStatus(true);
+            }
+        });
+
+        // APIキー入力時の処理
+        apiKeyInput.addEventListener('input', () => {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('gemini_api_key', key);
+                toggleInputStatus(true);
+            } else {
+                localStorage.removeItem('gemini_api_key');
+                toggleInputStatus(false);
+            }
+        });
+
+        function toggleInputStatus(enabled) {
+            messageInput.disabled = !enabled;
+            sendBtn.disabled = !enabled;
+            if (enabled) {
+                messageInput.placeholder = "メッセージを入力...";
+            } else {
+                messageInput.placeholder = "APIキーを入力してください";
+            }
+        }
+
+        // メッセージを画面に追加
+        function appendMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message', sender);
+            msgDiv.innerText = text;
+            chatArea.appendChild(msgDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // 送信処理
+        async function sendMessage() {
+            const prompt = messageInput.value.trim();
+            const apiKey = apiKeyInput.value.trim();
+            if (!prompt || !apiKey) return;
+
+            appendMessage(prompt, 'user');
+            messageInput.value = '';
+            sendBtn.disabled = true;
+
+            try {
+                // Google公式ドメインのエンドポイント (Gemini 2.0 Flash)
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: prompt }]
+                        }]
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // レスポンスデータの解析
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    const aiResponse = data.candidates[0].content.parts[0].text;
+                    appendMessage(aiResponse, 'ai');
+                } else {
+                    appendMessage('適切な応答を受け取れませんでした。', 'ai');
+                }
+
+            } catch (error) {
+                console.error(error);
+                appendMessage(`エラーが発生しました: ${error.message}\nAPIキーが正しいか、または通信がブロックされていないか確認してください。`, 'ai');
+            } finally {
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        // イベントリスナー
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
+</body>
+</html>
